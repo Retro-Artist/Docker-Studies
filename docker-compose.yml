@@ -1,4 +1,3 @@
-
 services:
   # Apache + PHP Service
   app:
@@ -39,6 +38,7 @@ services:
   # phpMyAdmin Service
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
+    platform: linux/amd64  # Added platform specification
     restart: always
     ports:
       - "8081:80"
