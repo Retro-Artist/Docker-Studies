@@ -1,6 +1,6 @@
 # Clean MVC CRUD Application
 
-A very clean and maintainable MVC CRUD application built with PHP 8.3+, running on Apache with MySQL database.
+A very clean and maintainable MVC CRUD application built with PHP 8.3+, running on Apache with MySQL database and PHPMyAdmin5.
 
 ## Features
 
@@ -47,14 +47,14 @@ A very clean and maintainable MVC CRUD application built with PHP 8.3+, running 
 1. Clone the repository (or download and extract the zip file):
 
 ```bash
-git clone https://github.com/your-name/mvc-crud.git
-cd mvc-crud
+git clone https://github.com/Retro-Artist/Docker-Studies.git
+cd htdocs
 ```
 
-2. rename ".env.example" file to ".env"
+1. Simply rename ".env.example" to ".env" or create a new .env file using ".env.example" as a template:
 
 ```bash
-.env.example -> .env
+docker-compose mv .env.example .env
 ```
 
 3. Start the Docker containers:
