@@ -29,7 +29,7 @@ A very clean and maintainable MVC CRUD application built with PHP 8.3+, running 
 │   ├── Exceptions/         # Custom exceptions
 │   ├── Models/             # Model classes
 │   └── Views/              # View templates
-├── .env                    # Environment variables
+├── .env.example            # Environment template (rename)
 ├── .gitignore              # Git ignore file
 ├── Dockerfile              # Docker configuration
 ├── apache-config.conf      # Apache configuration
@@ -51,25 +51,31 @@ git clone https://github.com/your-name/mvc-crud.git
 cd mvc-crud
 ```
 
-2. Start the Docker containers:
+2. rename ".env.example" file to ".env"
+
+```bash
+.env.example -> .env
+```
+
+3. Start the Docker containers:
 
 ```bash
 docker-compose up -d
 ```
 
-3. Install Composer dependencies:
+4. Install Composer dependencies:
 
 ```bash
 docker-compose exec app composer install
 ```
 
-4. Run the database migration script:
+5. Run the database migration script:
 
 ```bash
 docker-compose exec app php database/migrate.php
 ```
 
-5. Access the application in your browser:
+6. Access the application in your browser:
 
 - Application: http://localhost:8080
 - phpMyAdmin: http://localhost:8081 (Server: mysql, Username: root, Password: root_password)
