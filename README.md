@@ -72,7 +72,7 @@ docker-compose exec app php database/migrate.php
 5. Access the application in your browser:
 
 - Application: http://localhost:8080
-- phpMyAdmin: http://localhost:8081 (Server: mysql, Username: mvc_user, Password: mvc_password)
+- phpMyAdmin: http://localhost:8081 (Server: mysql, Username: root, Password: root_password)
 
 ## Development
 
@@ -89,10 +89,12 @@ The Docker environment maps the `src` directory from your local machine to the c
 - Host: localhost
 - Port: 3306
 - Database: mvc_crud
-- Username: mvc_user
-- Password: mvc_password
+- Username: root
+- Password: root_password
 
-For root access:
+For phpMyAdmin:
+- URL: http://localhost:8081
+- Server: mysql
 - Username: root
 - Password: root_password
 
