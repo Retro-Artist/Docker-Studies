@@ -29,7 +29,7 @@ A very clean and maintainable MVC CRUD application built with PHP 8.3+, running 
 │   ├── Exceptions/         # Custom exceptions
 │   ├── Models/             # Model classes
 │   └── Views/              # View templates
-├── .env.example            # Environment template (rename)
+├── .env.example            # Environment template
 ├── .gitignore              # Git ignore file
 ├── Dockerfile              # Docker configuration
 ├── apache-config.conf      # Apache configuration
