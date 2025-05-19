@@ -1,21 +1,26 @@
 FROM php:8.3-apache
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    libpng-dev \
+    git \
     libonig-dev \
+    libpng-dev \
     libxml2-dev \
     libzip-dev \
+    unzip \
     zip \
-    unzip
-
-# Clear cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
+RUN docker-php-ext-install \
+    bcmath \
+    exif \
+    gd \
+    mbstring \
+    pcntl \
+    pdo_mysql \
+    zip
 
 # Install Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
@@ -30,5 +35,4 @@ WORKDIR /var/www/html
 COPY apache-config.conf /etc/apache2/sites-available/000-default.conf
 
 # Restart Apache
-RUN service apache2 restart
-
+CMD ["apache2-foreground"]
