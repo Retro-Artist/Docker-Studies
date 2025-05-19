@@ -18,7 +18,7 @@ class Application
     public Router $router;
     public Request $request;
     public Response $response;
-    public Database $database;
+    public ?Database $database = null;
     public string $rootPath;
     
     public function __construct()
@@ -28,7 +28,13 @@ class Application
         $this->request = new Request();
         $this->response = new Response();
         $this->router = new Router($this->request, $this->response);
-        $this->database = new Database();
+        
+        try {
+            $this->database = new Database();
+        } catch (\PDOException $e) {
+            // We'll handle database connection errors in the run method
+            $this->database = null;
+        }
         
         // Initialize routes
         $this->initializeRoutes();
@@ -49,6 +55,12 @@ class Application
     public function run(): void
     {
         try {
+            // Check if database is connected
+            if ($this->database === null) {
+                echo $this->renderDatabaseConnecting();
+                exit;
+            }
+            
             echo $this->router->resolve();
         } catch (\PDOException $e) {
             // Handle database exceptions
@@ -59,6 +71,46 @@ class Application
             $this->response->setStatusCode(500);
             echo $this->renderError($e);
         }
+    }
+    
+    /**
+     * Render a loading screen when database is connecting
+     */
+    private function renderDatabaseConnecting(): string
+    {
+        return '<!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Starting Application...</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <style>
+                body { height: 100vh; display: flex; align-items: center; justify-content: center; }
+                .spinner-container { text-align: center; }
+                .spinner-border { width: 3rem; height: 3rem; }
+            </style>
+            <meta http-equiv="refresh" content="2">
+        </head>
+        <body>
+            <div class="container">
+                <div class="spinner-container">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h3>Starting Application...</h3>
+                    <p class="text-muted">Please wait while the database connection is established...</p>
+                    <div class="mt-3">
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <p class="mt-3 small text-muted">This page will refresh automatically.</p>
+                </div>
+            </div>
+        </body>
+        </html>';
     }
     
     /**

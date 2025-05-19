@@ -27,33 +27,52 @@ class Database
         
         $dsn = "mysql:host={$host};port={$port};dbname={$database};charset=utf8mb4";
         
-        try {
-            $this->pdo = new PDO($dsn, $username, $password, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
-            ]);
-        } catch (PDOException $e) {
-            // Check if this is a "Connection refused" error
-            if (strpos($e->getMessage(), 'Connection refused') !== false) {
-                throw new \PDOException(
-                    "Database connection failed: MySQL server is not running or not accessible. " .
-                    "Please ensure MySQL container is up by running 'docker-compose up -d'.", 
-                    (int)$e->getCode(), $e
-                );
+        $maxRetries = 5;
+        $retryDelay = 2; // seconds
+        $attempt = 0;
+        
+        while ($attempt < $maxRetries) {
+            try {
+                $this->pdo = new PDO($dsn, $username, $password, [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                    PDO::ATTR_TIMEOUT => 3, // 3 seconds timeout
+                ]);
+                
+                // If we got here, connection successful
+                return;
+                
+            } catch (PDOException $e) {
+                $attempt++;
+                
+                // If we're on our last attempt, or if it's not a connection refused error, throw the error
+                if ($attempt >= $maxRetries || strpos($e->getMessage(), 'Connection refused') === false) {
+                    // Check if this is a "Connection refused" error
+                    if (strpos($e->getMessage(), 'Connection refused') !== false) {
+                        throw new \PDOException(
+                            "Database connection failed: MySQL server is not running or not accessible. " .
+                            "Please ensure MySQL container is up by running 'docker-compose up -d'.", 
+                            (int)$e->getCode(), $e
+                        );
+                    }
+                    // Check if this is an "Unknown database" error
+                    else if (strpos($e->getMessage(), 'Unknown database') !== false) {
+                        throw new \PDOException(
+                            "Database '{$database}' does not exist. " .
+                            "Please run the database migration script with: " .
+                            "'docker-compose exec app php database/migrate.php'", 
+                            (int)$e->getCode(), $e
+                        );
+                    }
+                    
+                    // For other PDO errors, throw the original exception
+                    throw $e;
+                }
+                
+                // Wait before retrying
+                sleep($retryDelay);
             }
-            // Check if this is an "Unknown database" error
-            else if (strpos($e->getMessage(), 'Unknown database') !== false) {
-                throw new \PDOException(
-                    "Database '{$database}' does not exist. " .
-                    "Please run the database migration script with: " .
-                    "'docker-compose exec app php database/migrate.php'", 
-                    (int)$e->getCode(), $e
-                );
-            }
-            
-            // For other PDO errors, throw the original exception
-            throw $e;
         }
     }
     
