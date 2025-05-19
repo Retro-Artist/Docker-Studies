@@ -13,5 +13,3 @@ require_once ROOT_DIR . '/config/bootstrap.php';
 // Initialize and run the application
 $app = new \App\Core\Application();
 $app->run();
-
-
