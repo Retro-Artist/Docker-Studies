@@ -73,11 +73,16 @@ class Router
         // If route not found
         if (!$callback) {
             // Try to match routes with parameters
-            $callback = $this->matchRouteWithParams($method, $path);
+            $result = $this->matchRouteWithParams($method, $path);
             
-            if (!$callback) {
+            if (!$result) {
                 throw new NotFoundException();
             }
+            
+            [$callback, $params] = $result;
+            
+            // Set route parameters in request object
+            $this->request->setRouteParams($params);
         }
         
         // If callback is string (e.g., 'controller@method')
@@ -113,15 +118,10 @@ class Router
             $pattern = "@^" . $pattern . "$@D";
             
             if (preg_match($pattern, $path, $matches)) {
-                // Extract route parameters
+                // Extract route parameters (non-numeric keys are named parameters)
                 $params = array_filter($matches, fn($key) => !is_numeric($key), ARRAY_FILTER_USE_KEY);
                 
-                // Store parameters in the request
-                foreach ($params as $name => $value) {
-                    $_GET[$name] = $value;
-                }
-                
-                return $callback;
+                return [$callback, $params];
             }
         }
         

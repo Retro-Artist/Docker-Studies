@@ -50,21 +50,55 @@ class Application
     {
         try {
             echo $this->router->resolve();
+        } catch (\PDOException $e) {
+            // Handle database exceptions
+            $this->response->setStatusCode(500);
+            echo $this->renderDatabaseError($e);
         } catch (\Exception $e) {
-            // Handle exceptions
+            // Handle other exceptions
             $this->response->setStatusCode(500);
             echo $this->renderError($e);
         }
     }
     
     /**
-     * Render error messages
+     * Render database error messages with setup instructions
+     */
+    private function renderDatabaseError(\PDOException $e): string
+    {
+        // Check if it's a user-friendly message about migration
+        if (strpos($e->getMessage(), 'run the database migration') !== false) {
+            return sprintf(
+                '<div style="max-width: 800px; margin: 50px auto; padding: 20px; border: 1px solid #dc3545; border-radius: 5px; font-family: sans-serif;">
+                    <h1 style="color: #dc3545;">Database Setup Required</h1>
+                    <p style="font-size: 16px; line-height: 1.5;">%s</p>
+                    <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-left: 4px solid #6c757d; font-family: monospace;">
+                        <p><strong>To set up the database, run:</strong></p>
+                        <code>docker-compose exec app php database/migrate.php</code>
+                    </div>
+                </div>',
+                $e->getMessage()
+            );
+        }
+        
+        // For other database errors, use the general error renderer
+        return $this->renderError($e);
+    }
+    
+    /**
+     * Render general error messages
      */
     private function renderError(\Exception $e): string
     {
         if (Env::get('APP_ENV') === 'development') {
             return sprintf(
-                '<h1>Error</h1><p>%s</p><p>%s</p>',
+                '<div style="max-width: 800px; margin: 50px auto; padding: 20px; border: 1px solid #dc3545; border-radius: 5px; font-family: sans-serif;">
+                    <h1 style="color: #dc3545;">Error</h1>
+                    <p style="font-size: 16px; line-height: 1.5;">%s</p>
+                    <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-left: 4px solid #6c757d; font-family: monospace; overflow-x: auto;">
+                        <pre>%s</pre>
+                    </div>
+                </div>',
                 $e->getMessage(),
                 $e->getTraceAsString()
             );

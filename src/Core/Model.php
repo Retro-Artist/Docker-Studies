@@ -4,7 +4,9 @@ declare(strict_types=1);
 namespace App\Core;
 
 use App\Core\Application;
+use App\Exceptions\NotFoundException;
 use PDO;
+use PDOException;
 
 /**
  * Base Model Class
@@ -42,18 +44,36 @@ abstract class Model
     /**
      * Find a record by ID
      */
-    public function find(int|string $id): ?static
+    public function find(int|string|null $id): ?static
     {
-        $statement = $this->db()->prepare("SELECT * FROM {$this->table} WHERE {$this->primaryKey} = :id LIMIT 1");
-        $statement->execute(['id' => $id]);
-        
-        $result = $statement->fetch(PDO::FETCH_ASSOC);
-        
-        if (!$result) {
-            return null;
+        if ($id === null) {
+            throw new NotFoundException("Invalid ID: Parameter is null");
         }
         
-        return $this->mapIntoObject($result);
+        try {
+            $statement = $this->db()->prepare("SELECT * FROM {$this->table} WHERE {$this->primaryKey} = :id LIMIT 1");
+            $statement->execute(['id' => $id]);
+            
+            $result = $statement->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$result) {
+                throw new NotFoundException("Record with ID {$id} not found in {$this->table}");
+            }
+            
+            return $this->mapIntoObject($result);
+        } catch (PDOException $e) {
+            // Check if this is a "table doesn't exist" error
+            if (strpos($e->getMessage(), "Table 'mvc_crud.{$this->table}' doesn't exist") !== false) {
+                throw new \PDOException(
+                    "The database tables have not been created yet. " .
+                    "Please run the database migration script with: " .
+                    "'docker-compose exec app php database/migrate.php'", 
+                    (int)$e->getCode(), $e
+                );
+            }
+            
+            throw $e;
+        }
     }
     
     /**
@@ -61,35 +81,49 @@ abstract class Model
      */
     public function findAll(array $conditions = [], array $orderBy = []): array
     {
-        $sql = "SELECT * FROM {$this->table}";
-        $params = [];
-        
-        // Add WHERE conditions if any
-        if (!empty($conditions)) {
-            $whereClause = [];
-            foreach ($conditions as $column => $value) {
-                $whereClause[] = "{$column} = :{$column}";
-                $params[$column] = $value;
+        try {
+            $sql = "SELECT * FROM {$this->table}";
+            $params = [];
+            
+            // Add WHERE conditions if any
+            if (!empty($conditions)) {
+                $whereClause = [];
+                foreach ($conditions as $column => $value) {
+                    $whereClause[] = "{$column} = :{$column}";
+                    $params[$column] = $value;
+                }
+                $sql .= " WHERE " . implode(' AND ', $whereClause);
             }
-            $sql .= " WHERE " . implode(' AND ', $whereClause);
-        }
-        
-        // Add ORDER BY if any
-        if (!empty($orderBy)) {
-            $orderClauses = [];
-            foreach ($orderBy as $column => $direction) {
-                $orderClauses[] = "{$column} {$direction}";
+            
+            // Add ORDER BY if any
+            if (!empty($orderBy)) {
+                $orderClauses = [];
+                foreach ($orderBy as $column => $direction) {
+                    $orderClauses[] = "{$column} {$direction}";
+                }
+                $sql .= " ORDER BY " . implode(', ', $orderClauses);
             }
-            $sql .= " ORDER BY " . implode(', ', $orderClauses);
+            
+            $statement = $this->db()->prepare($sql);
+            $statement->execute($params);
+            
+            return array_map(
+                fn($result) => $this->mapIntoObject($result),
+                $statement->fetchAll(PDO::FETCH_ASSOC)
+            );
+        } catch (PDOException $e) {
+            // Check if this is a "table doesn't exist" error
+            if (strpos($e->getMessage(), "Table 'mvc_crud.{$this->table}' doesn't exist") !== false) {
+                throw new \PDOException(
+                    "The database tables have not been created yet. " .
+                    "Please run the database migration script with: " .
+                    "'docker-compose exec app php database/migrate.php'", 
+                    (int)$e->getCode(), $e
+                );
+            }
+            
+            throw $e;
         }
-        
-        $statement = $this->db()->prepare($sql);
-        $statement->execute($params);
-        
-        return array_map(
-            fn($result) => $this->mapIntoObject($result),
-            $statement->fetchAll(PDO::FETCH_ASSOC)
-        );
     }
     
     /**
@@ -113,27 +147,41 @@ abstract class Model
      */
     protected function create(array $attributes): bool
     {
-        // Filter only fillable attributes
-        $fillableAttributes = array_intersect_key($attributes, array_flip($this->fillable));
-        
-        if (empty($fillableAttributes)) {
-            return false;
+        try {
+            // Filter only fillable attributes
+            $fillableAttributes = array_intersect_key($attributes, array_flip($this->fillable));
+            
+            if (empty($fillableAttributes)) {
+                return false;
+            }
+            
+            $columns = implode(', ', array_keys($fillableAttributes));
+            $placeholders = implode(', ', array_map(fn($col) => ":{$col}", array_keys($fillableAttributes)));
+            
+            $sql = "INSERT INTO {$this->table} ({$columns}) VALUES ({$placeholders})";
+            $statement = $this->db()->prepare($sql);
+            
+            $result = $statement->execute($fillableAttributes);
+            
+            if ($result) {
+                // Set ID of created record
+                $this->attributes[$this->primaryKey] = $this->db()->lastInsertId();
+            }
+            
+            return $result;
+        } catch (PDOException $e) {
+            // Check if this is a "table doesn't exist" error
+            if (strpos($e->getMessage(), "Table 'mvc_crud.{$this->table}' doesn't exist") !== false) {
+                throw new \PDOException(
+                    "The database tables have not been created yet. " .
+                    "Please run the database migration script with: " .
+                    "'docker-compose exec app php database/migrate.php'", 
+                    (int)$e->getCode(), $e
+                );
+            }
+            
+            throw $e;
         }
-        
-        $columns = implode(', ', array_keys($fillableAttributes));
-        $placeholders = implode(', ', array_map(fn($col) => ":{$col}", array_keys($fillableAttributes)));
-        
-        $sql = "INSERT INTO {$this->table} ({$columns}) VALUES ({$placeholders})";
-        $statement = $this->db()->prepare($sql);
-        
-        $result = $statement->execute($fillableAttributes);
-        
-        if ($result) {
-            // Set ID of created record
-            $this->attributes[$this->primaryKey] = $this->db()->lastInsertId();
-        }
-        
-        return $result;
     }
     
     /**
@@ -141,27 +189,41 @@ abstract class Model
      */
     protected function update(array $attributes): bool
     {
-        // Filter only fillable attributes
-        $fillableAttributes = array_intersect_key($attributes, array_flip($this->fillable));
-        
-        if (empty($fillableAttributes)) {
-            return false;
+        try {
+            // Filter only fillable attributes
+            $fillableAttributes = array_intersect_key($attributes, array_flip($this->fillable));
+            
+            if (empty($fillableAttributes)) {
+                return false;
+            }
+            
+            $id = $attributes[$this->primaryKey];
+            
+            $setParts = array_map(
+                fn($col) => "{$col} = :{$col}",
+                array_keys($fillableAttributes)
+            );
+            
+            $sql = "UPDATE {$this->table} SET " . implode(', ', $setParts) . " WHERE {$this->primaryKey} = :id";
+            
+            // Add id to parameters
+            $fillableAttributes['id'] = $id;
+            
+            $statement = $this->db()->prepare($sql);
+            return $statement->execute($fillableAttributes);
+        } catch (PDOException $e) {
+            // Check if this is a "table doesn't exist" error
+            if (strpos($e->getMessage(), "Table 'mvc_crud.{$this->table}' doesn't exist") !== false) {
+                throw new \PDOException(
+                    "The database tables have not been created yet. " .
+                    "Please run the database migration script with: " .
+                    "'docker-compose exec app php database/migrate.php'", 
+                    (int)$e->getCode(), $e
+                );
+            }
+            
+            throw $e;
         }
-        
-        $id = $attributes[$this->primaryKey];
-        
-        $setParts = array_map(
-            fn($col) => "{$col} = :{$col}",
-            array_keys($fillableAttributes)
-        );
-        
-        $sql = "UPDATE {$this->table} SET " . implode(', ', $setParts) . " WHERE {$this->primaryKey} = :id";
-        
-        // Add id to parameters
-        $fillableAttributes['id'] = $id;
-        
-        $statement = $this->db()->prepare($sql);
-        return $statement->execute($fillableAttributes);
     }
     
     /**
@@ -169,18 +231,32 @@ abstract class Model
      */
     public function delete(): bool
     {
-        $attributes = $this->getAttributes();
-        
-        if (!isset($attributes[$this->primaryKey])) {
-            return false;
+        try {
+            $attributes = $this->getAttributes();
+            
+            if (!isset($attributes[$this->primaryKey])) {
+                return false;
+            }
+            
+            $id = $attributes[$this->primaryKey];
+            
+            $sql = "DELETE FROM {$this->table} WHERE {$this->primaryKey} = :id";
+            $statement = $this->db()->prepare($sql);
+            
+            return $statement->execute(['id' => $id]);
+        } catch (PDOException $e) {
+            // Check if this is a "table doesn't exist" error
+            if (strpos($e->getMessage(), "Table 'mvc_crud.{$this->table}' doesn't exist") !== false) {
+                throw new \PDOException(
+                    "The database tables have not been created yet. " .
+                    "Please run the database migration script with: " .
+                    "'docker-compose exec app php database/migrate.php'", 
+                    (int)$e->getCode(), $e
+                );
+            }
+            
+            throw $e;
         }
-        
-        $id = $attributes[$this->primaryKey];
-        
-        $sql = "DELETE FROM {$this->table} WHERE {$this->primaryKey} = :id";
-        $statement = $this->db()->prepare($sql);
-        
-        return $statement->execute(['id' => $id]);
     }
     
     /**

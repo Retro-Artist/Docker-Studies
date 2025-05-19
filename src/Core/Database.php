@@ -34,7 +34,26 @@ class Database
                 PDO::ATTR_EMULATE_PREPARES => false,
             ]);
         } catch (PDOException $e) {
-            throw new PDOException($e->getMessage(), (int)$e->getCode());
+            // Check if this is a "Connection refused" error
+            if (strpos($e->getMessage(), 'Connection refused') !== false) {
+                throw new \PDOException(
+                    "Database connection failed: MySQL server is not running or not accessible. " .
+                    "Please ensure MySQL container is up by running 'docker-compose up -d'.", 
+                    (int)$e->getCode(), $e
+                );
+            }
+            // Check if this is an "Unknown database" error
+            else if (strpos($e->getMessage(), 'Unknown database') !== false) {
+                throw new \PDOException(
+                    "Database '{$database}' does not exist. " .
+                    "Please run the database migration script with: " .
+                    "'docker-compose exec app php database/migrate.php'", 
+                    (int)$e->getCode(), $e
+                );
+            }
+            
+            // For other PDO errors, throw the original exception
+            throw $e;
         }
     }
     

@@ -63,7 +63,7 @@ docker-compose mv .env.example .env
 docker-compose up -d
 ```
 
-4. Install Composer dependencies:
+4. Install Composer dependencies (optional):
 
 ```bash
 docker-compose exec app composer install

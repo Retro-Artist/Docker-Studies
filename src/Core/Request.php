@@ -9,6 +9,11 @@ namespace App\Core;
 class Request
 {
     /**
+     * Route parameters
+     */
+    private array $routeParams = [];
+    
+    /**
      * Get the current request path
      */
     public function getPath(): string
@@ -63,12 +68,34 @@ class Request
     }
     
     /**
-     * Get a specific input value
+     * Get a specific input value from GET, POST or route parameters
      */
     public function input(string $key, $default = null)
     {
+        // First check route parameters
+        if (isset($this->routeParams[$key])) {
+            return $this->routeParams[$key];
+        }
+        
+        // Then check body parameters
         $body = $this->getBody();
         return $body[$key] ?? $default;
+    }
+    
+    /**
+     * Set route parameters
+     */
+    public function setRouteParams(array $params): void
+    {
+        $this->routeParams = $params;
+    }
+    
+    /**
+     * Get all route parameters
+     */
+    public function getRouteParams(): array
+    {
+        return $this->routeParams;
     }
     
     /**
