@@ -8,6 +8,6 @@ namespace App\Exceptions;
  */
 class NotFoundException extends \Exception
 {
-    protected $message = 'Page not found';
+    protected $message = '404 - Page not found';
     protected $code = 404;
 }

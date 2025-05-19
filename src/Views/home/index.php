@@ -5,7 +5,7 @@
             This is a clean and maintainable MVC CRUD application built with PHP 8.3, 
             running on Apache with MySQL database and using Docker for development.
         </p>
-        <a href="/users" class="btn btn-primary btn-lg">View Users</a>
+          <a href="http://localhost:8081/" class="btn btn-primary btn-lg">Access PHPMyAdmin</a>
     </div>
 </div>
 
